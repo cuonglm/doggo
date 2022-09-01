@@ -77,7 +77,15 @@ func LoadResolvers(opts Options) ([]Resolver, error) {
 	for _, ns := range opts.Nameservers {
 		if ns.Type == models.DOHResolver {
 			opts.Logger.Debug("initiating DOH resolver")
-			rslvr, err := NewDOHResolver(ns.Address, opts)
+			rslvr, err := NewDOHResolver(ns.Address, opts, false)
+			if err != nil {
+				return rslvrs, err
+			}
+			rslvrs = append(rslvrs, rslvr)
+		}
+		if ns.Type == models.DOH3Resolver {
+			opts.Logger.Debug("initiating DOH3 resolver")
+			rslvr, err := NewDOHResolver(ns.Address, opts, true)
 			if err != nil {
 				return rslvrs, err
 			}

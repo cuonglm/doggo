@@ -13,6 +13,7 @@ const (
 	DefaultDOQPort   = "853"
 	UDPResolver      = "udp"
 	DOHResolver      = "doh"
+	DOH3Resolver     = "doh3"
 	TCPResolver      = "tcp"
 	DOTResolver      = "dot"
 	DNSCryptResolver = "dnscrypt"

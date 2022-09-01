@@ -85,6 +85,10 @@ func initNameserver(n string) (models.Nameserver, error) {
 		ns.Type = models.DOHResolver
 		ns.Address = u.String()
 
+	case "https3":
+		ns.Type = models.DOH3Resolver
+		ns.Address = u.String()
+
 	case "tls":
 		ns.Type = models.DOTResolver
 		if u.Port() == "" {
@@ -116,6 +120,7 @@ func initNameserver(n string) (models.Nameserver, error) {
 			ns.Address = net.JoinHostPort(u.Hostname(), u.Port())
 		}
 	}
+
 	return ns, nil
 }
 

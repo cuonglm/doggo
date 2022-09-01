@@ -7,8 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
+	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 )
@@ -21,8 +23,11 @@ type DOHResolver struct {
 }
 
 // NewDOHResolver accepts a nameserver address and configures a DOH based resolver.
-func NewDOHResolver(server string, resolverOpts Options) (Resolver, error) {
+func NewDOHResolver(server string, resolverOpts Options, doh3 bool) (Resolver, error) {
 	// do basic validation
+	if doh3 {
+		server = strings.Replace(server, "https3", "https", 1)
+	}
 	u, err := url.ParseRequestURI(server)
 	if err != nil {
 		return nil, fmt.Errorf("%s is not a valid HTTPS nameserver", server)
@@ -33,6 +38,11 @@ func NewDOHResolver(server string, resolverOpts Options) (Resolver, error) {
 	httpClient := &http.Client{
 		Timeout: resolverOpts.Timeout,
 	}
+
+	if doh3 {
+		httpClient.Transport = &http3.RoundTripper{}
+	}
+
 	return &DOHResolver{
 		client:          httpClient,
 		server:          server,
