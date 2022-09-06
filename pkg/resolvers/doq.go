@@ -128,3 +128,7 @@ func (r *DOQResolver) Lookup(question dns.Question) (Response, error) {
 	}
 	return rsp, nil
 }
+
+func (r *DOQResolver) SetTLSConfig(tlsCfg *tls.Config) {
+	r.tls = tlsCfg
+}
