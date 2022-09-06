@@ -132,3 +132,71 @@ func (r *DOQResolver) Lookup(question dns.Question) (Response, error) {
 func (r *DOQResolver) SetTLSConfig(tlsCfg *tls.Config) {
 	r.tls = tlsCfg
 }
+
+// Lookup1 likes Lookup, but return a list of dns.Msg instead.
+func (r *DOQResolver) Lookup1(question dns.Question) ([]dns.Msg, error) {
+	messages := prepareMessages(question, r.resolverOptions.Ndots, r.resolverOptions.SearchList)
+	resp := make([]dns.Msg, 0, len(messages))
+
+	session, err := quic.DialAddr(r.server, r.tls, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer session.CloseWithError(quic.ApplicationErrorCode(quic.NoError), "")
+
+	for _, msg := range messages {
+		// ref: https://www.rfc-editor.org/rfc/rfc9250.html#name-dns-message-ids
+		msg.Id = 0
+
+		// get the DNS Message in wire format.
+		var b []byte
+		b, err = msg.Pack()
+		if err != nil {
+			return nil, err
+		}
+
+		var stream quic.Stream
+		stream, err = session.OpenStream()
+		if err != nil {
+			return nil, err
+		}
+
+		var msgLen = uint16(len(b))
+		var msgLenBytes = []byte{byte(msgLen >> 8), byte(msgLen & 0xFF)}
+		_, err = stream.Write(msgLenBytes)
+		if err != nil {
+			return nil, err
+		}
+		// Make a QUIC request to the DNS server with the DNS message as wire format bytes in the body.
+		_, err = stream.Write(b)
+		if err != nil {
+			return nil, err
+		}
+
+		err = stream.SetDeadline(time.Now().Add(r.resolverOptions.Timeout))
+		if err != nil {
+			return nil, err
+		}
+
+		var buf []byte
+		buf, err = io.ReadAll(stream)
+		if err != nil {
+			if errors.Is(err, os.ErrDeadlineExceeded) {
+				return nil, fmt.Errorf("timeout")
+			}
+			return nil, err
+		}
+
+		_ = stream.Close()
+
+		packetLen := binary.BigEndian.Uint16(buf[:2])
+		if packetLen != uint16(len(buf[2:])) {
+			return nil, fmt.Errorf("packet length mismatch")
+		}
+		if err := msg.Unpack(buf[2:]); err != nil {
+			return nil, err
+		}
+		resp = append(resp, msg)
+	}
+	return resp, nil
+}
