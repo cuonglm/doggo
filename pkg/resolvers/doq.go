@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"time"
 
@@ -138,7 +139,20 @@ func (r *DOQResolver) Lookup1(question dns.Question) ([]dns.Msg, error) {
 	messages := prepareMessages(question, r.resolverOptions.Ndots, r.resolverOptions.SearchList)
 	resp := make([]dns.Msg, 0, len(messages))
 
-	session, err := quic.DialAddr(r.server, r.tls, nil)
+	network := "udp"
+	if isIPv6(r.server) || question.Qtype == dns.TypeAAAA {
+		network = "udp6"
+	}
+	udpAddr, err := net.ResolveUDPAddr(network, r.server)
+	if err != nil {
+		return nil, err
+	}
+	udpConn, err := net.ListenPacket(network, "")
+	if err != nil {
+		return nil, err
+	}
+
+	session, err := quic.Dial(udpConn, udpAddr, r.server, r.tls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -199,4 +213,13 @@ func (r *DOQResolver) Lookup1(question dns.Question) ([]dns.Msg, error) {
 		resp = append(resp, msg)
 	}
 	return resp, nil
+}
+
+func isIPv6(ip string) bool {
+	justIP, _, err := net.SplitHostPort(ip)
+	if err != nil {
+		justIP = ip
+	}
+	parsedIP := net.ParseIP(justIP)
+	return parsedIP != nil && parsedIP.To4() == nil && parsedIP.To16() != nil
 }
