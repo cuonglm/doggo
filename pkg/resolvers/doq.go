@@ -1,6 +1,7 @@
 package resolvers
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
@@ -170,7 +171,7 @@ func (r *DOQResolver) Lookup1(question dns.Question) ([]dns.Msg, error) {
 		}
 
 		var stream quic.Stream
-		stream, err = session.OpenStream()
+		stream, err = session.OpenStreamSync(context.Background())
 		if err != nil {
 			return nil, err
 		}
