@@ -194,8 +194,12 @@ func (r *DOQResolver) Lookup1(question dns.Question) ([]dns.Msg, error) {
 			return nil, err
 		}
 
-		var buf []byte
-		buf, err = io.ReadAll(stream)
+		// Use this other than io.ReadAll to prevent losing io.EOF error.
+		// Once we figure out why quic-go server sends io.EOF after running
+		// for a long time, we can have a better way to handle this. For now,
+		// make sure io.EOF error returned, so the caller can handle it cleanly.
+		buf := make([]byte, msgLen+2)
+		_, err = io.ReadFull(stream, buf)
 		if err != nil {
 			if errors.Is(err, os.ErrDeadlineExceeded) {
 				return nil, fmt.Errorf("timeout")
