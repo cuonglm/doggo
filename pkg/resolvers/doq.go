@@ -152,6 +152,7 @@ func (r *DOQResolver) Lookup1(question dns.Question) ([]dns.Msg, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer udpConn.Close()
 
 	session, err := quic.Dial(udpConn, udpAddr, r.server, r.tls, nil)
 	if err != nil {
